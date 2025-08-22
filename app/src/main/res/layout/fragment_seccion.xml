@@ -1,0 +1,255 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fitsSystemWindows="true">
+
+    <ScrollView
+        android:id="@+id/scrollView"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:fillViewport="true"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBottom_toTopOf="@+id/botonesNavegacion">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <TextView
+            android:id="@+id/tvTitulo"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:textColor="@color/cfe_verde_principal"
+            android:text="Sección"
+            android:background="@drawable/title_background"
+            android:padding="8dp"
+            android:elevation="2dp"/>
+            
+        <TextView
+            android:id="@+id/tvDescripcion"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="14sp"
+            android:textColor="@color/text_color_primary"
+            android:text="Descripción de la sección"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="8dp"
+            android:lineSpacingMultiplier="1.3"
+            android:paddingStart="4dp"
+            android:paddingEnd="4dp"/>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="8dp"
+            android:gravity="center_vertical">
+            
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/modo_captura"
+                android:textStyle="bold"
+                android:textSize="16sp"
+                android:layout_marginEnd="8dp"/>
+                
+            <androidx.appcompat.widget.SwitchCompat
+                android:id="@+id/switchUsarTexto"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/usar_texto"
+                android:padding="8dp"
+                app:thumbTint="@color/cfe_verde_principal"
+                app:trackTint="@color/cfe_verde_claro"/>
+        </LinearLayout>
+
+        <!-- Contenedor de texto -->
+        <LinearLayout
+            android:id="@+id/contenedorTexto"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingTop="8dp">
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/inputTextoLayout"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="@string/ingresa_texto"
+                app:errorEnabled="true"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                app:boxCornerRadiusBottomEnd="8dp"
+                app:boxCornerRadiusBottomStart="8dp"
+                app:boxCornerRadiusTopEnd="8dp"
+                app:boxCornerRadiusTopStart="8dp"
+                app:boxStrokeColor="@color/cfe_verde_principal"
+                app:hintTextColor="@color/cfe_verde_principal">
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/inputTexto"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="textCapSentences|textMultiLine"
+                    android:imeOptions="actionDone"
+                    android:minLines="3"
+                    android:maxLines="8"/>
+            </com.google.android.material.textfield.TextInputLayout>
+
+
+        </LinearLayout>
+
+        <!-- Contenedor de imágenes -->
+        <LinearLayout
+            android:id="@+id/contenedorImagenes"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingTop="8dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="end">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnNota"
+                    style="@style/Widget.CFE.OutlinedButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Nota"
+                    app:icon="@android:drawable/ic_menu_edit"
+                    app:iconGravity="textStart"
+                    app:iconTint="@color/cfe_verde_principal"
+                    app:rippleColor="@color/cfe_verde_claro"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"
+                    android:layout_marginEnd="8dp"/>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnAgregarImagen"
+                    style="@style/Widget.CFE.OutlinedButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/agregar_imagen"
+                    app:icon="@android:drawable/ic_menu_camera"
+                    app:iconGravity="textStart"
+                    app:iconTint="@color/cfe_verde_principal"
+                    app:rippleColor="@color/cfe_verde_claro"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"/>
+            </LinearLayout>
+
+            <!-- Campo de texto para la nota -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/inputNotaLayout"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:hint="Escriba una nota para el footer del PDF"
+                android:visibility="gone"
+                app:errorEnabled="true"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                app:boxCornerRadiusBottomEnd="8dp"
+                app:boxCornerRadiusBottomStart="8dp"
+                app:boxCornerRadiusTopEnd="8dp"
+                app:boxCornerRadiusTopStart="8dp"
+                app:boxStrokeColor="@color/cfe_verde_principal"
+                app:hintTextColor="@color/cfe_verde_principal">
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/inputNota"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="textCapSentences|textMultiLine"
+                    android:imeOptions="actionDone"
+                    android:minLines="2"
+                    android:maxLines="4"/>
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                app:cardCornerRadius="8dp"
+                app:cardElevation="2dp"
+                app:cardBackgroundColor="@color/photo_container_background">
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rvImagenes"
+                    android:layout_width="match_parent"
+                    android:layout_height="280dp"
+                    android:clipToPadding="false"
+                    android:orientation="horizontal"
+                    android:paddingStart="8dp"
+                    android:paddingTop="8dp"
+                    android:paddingEnd="8dp"
+                    android:paddingBottom="8dp"
+                    android:scrollbars="horizontal"
+                    app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
+            </androidx.cardview.widget.CardView>
+        </LinearLayout>
+
+        <!-- Espacio adicional al final del contenido para que no quede oculto por los botones fijos -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="16dp" />
+
+    </LinearLayout>
+    </ScrollView>
+    
+    <!-- Botones de navegación fijos en la parte inferior -->
+    <LinearLayout
+        android:id="@+id/botonesNavegacion"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingTop="16dp"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="24dp"
+        android:background="@color/navigation_buttons_background"
+        android:elevation="8dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnAnterior"
+            style="@style/Widget.CFE.Button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="0"
+            android:text="@string/anterior"
+            app:icon="@android:drawable/ic_media_previous"
+            app:iconGravity="textStart"
+            app:cornerRadius="8dp"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"/>
+            
+        <View
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="1" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnSiguiente"
+            style="@style/Widget.CFE.Button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="0"
+            android:text="@string/siguiente"
+            app:icon="@android:drawable/ic_media_next"
+            app:iconGravity="textEnd"
+            app:cornerRadius="8dp"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"/>
+    </LinearLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>

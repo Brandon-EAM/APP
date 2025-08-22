@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:minHeight="?attr/actionBarSize"
+    android:paddingTop="2dp"
+    android:paddingBottom="2dp"
+    android:background="@color/headerBackgroundColor"
+    android:elevation="2dp">
+
+    <!-- Título centrado -->
+    <TextView
+        android:id="@+id/action_bar_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerVertical="true"
+        android:layout_alignParentStart="true"
+        android:layout_marginStart="16dp"
+        android:textColor="@color/white"
+        android:textSize="18sp"
+        android:textStyle="bold" />
+
+    <!-- Logo alineado a la derecha (reducido 10%) -->
+    <ImageView
+        android:id="@+id/action_bar_logo"
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"
+        android:layout_alignParentEnd="true"
+        android:layout_marginEnd="16dp"
+        android:adjustViewBounds="true"
+        android:scaleType="fitEnd"
+        android:src="@drawable/logocfe"
+        android:contentDescription="Logo CFE"
+        android:scaleX="0.9"
+        android:scaleY="0.9" />
+
+</RelativeLayout>

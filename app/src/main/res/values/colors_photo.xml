@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Colores para modo claro -->
+    <color name="photo_container_background">#F5F5F5</color>
+    <color name="photo_card_background">#FFFFFF</color>
+</resources>

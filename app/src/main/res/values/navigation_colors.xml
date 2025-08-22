@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Colores para navegación en modo claro -->
+    <color name="navigation_buttons_background">#FFFFFF</color>
+</resources>

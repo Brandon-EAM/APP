@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="purple_200">#FFBB86FC</color>
+    <color name="purple_500">#FF6200EE</color>
+    <color name="purple_700">#FF3700B3</color>
+    <color name="teal_200">#FF03DAC5</color>
+    <color name="teal_700">#FF018786</color>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+
+    <!-- Paleta CFE -->
+    <color name="cfe_verde_principal">#006B3F</color>
+    <color name="cfe_verde_claro">#12A36E</color>
+    <color name="cfe_gris_texto">#333333</color>
+    <color name="cfe_gris_borde">#DDDDDD</color>
+    <color name="cfe_fondo">#F7F9F8</color>
+    <color name="cfe_blue">#0066CC</color>
+    
+    <!-- Color específico para el header -->
+    <color name="headerBackgroundColor">@color/cfe_verde_principal</color>
+</resources>

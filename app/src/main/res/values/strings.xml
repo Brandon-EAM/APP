@@ -1,0 +1,64 @@
+<resources>
+    <string name="app_name">CFE Supervisión</string>
+
+    <!-- Títulos de secciones -->
+    <string name="titulo_datos_generales">Datos Generales</string>
+    <string name="seccion_a">A: Controles por verificar</string>
+    <string name="seccion_b">B: Orden de Trabajo</string>
+    <string name="seccion_c">C: Planeación en campo</string>
+    <string name="seccion_d">D: Licencia de trabajo</string>
+    <string name="seccion_e">E: Evidencia de uso de equipo</string>
+    <string name="seccion_f">F: Delimitación de área</string>
+    <string name="seccion_g">G: Uso de equipo de protección</string>
+    <string name="seccion_h">H: Acciones que salvan vidas</string>
+    <string name="seccion_i">I: Selfie del supervisor</string>
+    <string name="seccion_j">J: Diagramas unifilares</string>
+    <string name="previsualizacion">Previsualización</string>
+    <string name="previsualizar_titulo">Previsualizar Título</string> <!-- Added -->
+
+    <!-- Campos Datos Generales -->
+    <string name="campo_centro_trabajo">Centro de Trabajo</string>
+    <string name="campo_instalacion">Instalación</string>
+    <string name="campo_fecha">Fecha de la supervisión (dd/MM/yyyy)</string>
+    <string name="campo_actividad">Actividad</string>
+    <string name="campo_cuadrilla">Cuadrilla</string>
+    <string name="campo_responsable">Responsable de Cuadrilla</string>
+    <string name="campo_integrantes">Integrantes de la Cuadrilla</string>
+    <string name="campo_supervisor">Supervisor</string>
+    <string name="campo_especialidad">Especialidad</string>
+
+    <!-- Botones y acciones -->
+    <string name="anterior">Anterior</string>
+    <string name="siguiente">Siguiente</string>
+    <string name="agregar_imagen">Agregar imagen</string>
+    <string name="tomar_foto">Tomar foto</string>
+    <string name="seleccionar_galeria">Seleccionar de galería</string>
+    <string name="eliminar">Eliminar</string>
+    <string name="reordenar">Reordenar</string>
+    <string name="usar_texto">Usar texto en lugar de imágenes</string>
+    <string name="modo_captura">Modo de captura:</string>
+    <string name="ingresa_texto">Ingresa el texto de la sección</string>
+    <string name="generar_pdf">Generar PDF</string>
+    <string name="ir_a_seccion">Ir a sección</string>
+    <string name="limpiar_imagenes">Limpiar imágenes</string>
+    <string name="texto_alternativo">Texto Alternativo</string> <!-- Added -->
+
+    <!-- Permisos -->
+    <string name="permiso_camara_rationale">Se requiere acceso a la cámara para capturar evidencia.</string>
+    <string name="permiso_lectura_rationale">Se requiere acceso a tus imágenes para seleccionar evidencia.</string>
+
+    <!-- PDF -->
+    <string name="pdf_titulo_general">Reporte de Supervisión Efectiva – Trabajo en General</string>
+    <string name="pdf_guardado_exito">PDF guardado en Downloads/CFE</string>
+    <string name="abrir">Abrir</string>
+    <string name="compartir">Compartir</string>
+
+    <!-- Mensajes -->
+    <string name="campos_obligatorios">Completa todos los campos obligatorios para continuar.</string>
+    <string name="sin_contenido">Sin contenido</string>
+
+    <!-- Bottom Nav Menu Titles -->
+    <string name="title_home">Inicio</string> <!-- Added -->
+    <string name="title_dashboard">Dashboard</string> <!-- Added -->
+    <string name="title_notifications">Notificaciones</string> <!-- Added -->
+</resources>

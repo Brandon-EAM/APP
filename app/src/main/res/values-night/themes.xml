@@ -1,0 +1,50 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Base application theme. -->
+    <style name="Theme.SUPER" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <!-- Colores primarios y secundarios para botones y elementos de UI -->
+        <item name="colorPrimary">@color/cfe_verde_principal</item>
+        <item name="colorPrimaryVariant">@color/cfe_verde_principal</item>
+        <item name="colorOnPrimary">@color/white</item>
+        <item name="colorSecondary">@color/cfe_verde_claro</item>
+        <item name="colorSecondaryVariant">@color/cfe_verde_claro</item>
+        <item name="colorOnSecondary">@color/white</item>
+        <item name="colorAccent">@color/cfe_verde_claro</item>
+        
+        <!-- Barra de estado con color específico del header -->
+        <item name="android:statusBarColor">@color/headerBackgroundColor</item>
+        <item name="colorPrimaryDark">@color/headerBackgroundColor</item>
+        
+        <!-- Configuración explícita del fondo para modo oscuro -->
+        <item name="android:windowBackground">@color/black</item>
+        <item name="android:colorBackground">@color/black</item>
+        <item name="colorBackgroundFloating">@color/black</item>
+        <item name="colorSurface">@color/black</item>
+        <item name="colorOnSurface">@color/white</item>
+        <item name="colorPrimarySurface">@color/black</item>
+        <item name="android:navigationBarColor">@color/black</item>
+        <item name="android:windowSplashScreenBackground">@color/black</item>
+        
+        <!-- Configuración del logo en ActionBar -->
+        <item name="actionBarStyle">@style/Widget.CFE.ActionBar</item>
+    </style>
+    
+    <!-- Estilo personalizado para ActionBar en modo oscuro -->
+    <style name="Widget.CFE.ActionBar" parent="Widget.MaterialComponents.ActionBar.Primary">
+        <item name="logo">@drawable/logocfe</item>
+        <item name="displayOptions">showTitle|showHome|useLogo|homeAsUp</item>
+        <item name="android:gravity">center_vertical|end</item>
+        <item name="background">@color/headerBackgroundColor</item>
+    </style>
+    
+    <!-- Estilo para botones en modo oscuro -->
+    <style name="Widget.CFE.Button" parent="Widget.MaterialComponents.Button">
+        <item name="backgroundTint">@color/cfe_verde_principal</item>
+        <item name="android:textColor">@color/white</item>
+    </style>
+
+    <!-- Estilo para botones con borde en modo oscuro -->
+    <style name="Widget.CFE.OutlinedButton" parent="Widget.MaterialComponents.Button.OutlinedButton">
+        <item name="strokeColor">@color/cfe_verde_principal</item>
+        <item name="android:textColor">@color/cfe_verde_principal</item>
+    </style>
+</resources>

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/header_cfe"
+    android:layout_width="match_parent"
+    android:layout_height="60dp"
+    android:background="@color/headerBackgroundColor"
+    android:elevation="4dp">
+
+    <ImageView
+        android:id="@+id/iv_logo_cfe"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_gravity="center"
+        android:adjustViewBounds="true"
+        android:contentDescription="@string/app_name"
+        android:padding="8dp"
+        android:scaleType="fitCenter"
+        android:src="@drawable/logocfe" />
+
+</FrameLayout>

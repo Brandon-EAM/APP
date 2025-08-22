@@ -1,0 +1,280 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/mobile_navigation"
+    app:startDestination="@+id/datosGeneralesFragment">
+
+    <fragment
+        android:id="@+id/datosGeneralesFragment"
+        android:name="com.example.asuper.ui.DatosGeneralesFragment"
+        android:label="@string/titulo_datos_generales"
+        tools:layout="@layout/fragment_datos_generales">
+        <action
+            android:id="@+id/action_datos_to_seccionA"
+            app:destination="@+id/seccionAFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/seccionAFragment"
+        android:name="com.example.asuper.ui.SeccionFragment"
+        android:label="@string/seccion_a"
+        tools:layout="@layout/fragment_seccion">
+        <action
+            android:id="@+id/action_seccionA_to_seccionB"
+            app:destination="@+id/seccionBFragment" />
+        <action
+            android:id="@+id/action_seccionA_to_datos"
+            app:destination="@+id/datosGeneralesFragment" />
+        <argument
+            android:name="seccionType"
+            app:argType="string"
+            android:defaultValue="A" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/seccionBFragment"
+        android:name="com.example.asuper.ui.SeccionFragment"
+        android:label="@string/seccion_b"
+        tools:layout="@layout/fragment_seccion">
+        <action
+            android:id="@+id/action_seccionB_to_seccionC"
+            app:destination="@+id/seccionCFragment" />
+        <action
+            android:id="@+id/action_seccionB_to_seccionA"
+            app:destination="@+id/seccionAFragment" />
+        <argument
+            android:name="seccionType"
+            app:argType="string"
+            android:defaultValue="B" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/seccionCFragment"
+        android:name="com.example.asuper.ui.SeccionFragment"
+        android:label="@string/seccion_c"
+        tools:layout="@layout/fragment_seccion">
+        <action
+            android:id="@+id/action_seccionC_to_seccionD"
+            app:destination="@+id/seccionDFragment" />
+        <action
+            android:id="@+id/action_seccionC_to_seccionB"
+            app:destination="@+id/seccionBFragment" />
+        <argument
+            android:name="seccionType"
+            app:argType="string"
+            android:defaultValue="C" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/seccionDFragment"
+        android:name="com.example.asuper.ui.SeccionFragment"
+        android:label="@string/seccion_d"
+        tools:layout="@layout/fragment_seccion">
+        <action
+            android:id="@+id/action_seccionD_to_seccionE"
+            app:destination="@+id/seccionEFragment" />
+        <action
+            android:id="@+id/action_seccionD_to_seccionC"
+            app:destination="@+id/seccionCFragment" />
+        <argument
+            android:name="seccionType"
+            app:argType="string"
+            android:defaultValue="D" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/seccionEFragment"
+        android:name="com.example.asuper.ui.SeccionFragment"
+        android:label="@string/seccion_e"
+        tools:layout="@layout/fragment_seccion">
+        <action
+            android:id="@+id/action_seccionE_to_seccionF"
+            app:destination="@+id/seccionFFragment" />
+        <action
+            android:id="@+id/action_seccionE_to_seccionD"
+            app:destination="@+id/seccionDFragment" />
+        <argument
+            android:name="seccionType"
+            app:argType="string"
+            android:defaultValue="E" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/seccionFFragment"
+        android:name="com.example.asuper.ui.SeccionFragment"
+        android:label="@string/seccion_f"
+        tools:layout="@layout/fragment_seccion">
+        <action
+            android:id="@+id/action_seccionF_to_seccionG"
+            app:destination="@+id/seccionGFragment" />
+        <action
+            android:id="@+id/action_seccionF_to_seccionE"
+            app:destination="@+id/seccionEFragment" />
+        <argument
+            android:name="seccionType"
+            app:argType="string"
+            android:defaultValue="F" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/seccionGFragment"
+        android:name="com.example.asuper.ui.SeccionFragment"
+        android:label="@string/seccion_g"
+        tools:layout="@layout/fragment_seccion">
+        <action
+            android:id="@+id/action_seccionG_to_seccionH"
+            app:destination="@+id/seccionHFragment" />
+        <action
+            android:id="@+id/action_seccionG_to_seccionF"
+            app:destination="@+id/seccionFFragment" />
+        <argument
+            android:name="seccionType"
+            app:argType="string"
+            android:defaultValue="G" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/seccionHFragment"
+        android:name="com.example.asuper.ui.SeccionFragment"
+        android:label="@string/seccion_h"
+        tools:layout="@layout/fragment_seccion">
+        <action
+            android:id="@+id/action_seccionH_to_seccionI"
+            app:destination="@+id/seccionIFragment" />
+        <action
+            android:id="@+id/action_seccionH_to_seccionG"
+            app:destination="@+id/seccionGFragment" />
+        <argument
+            android:name="seccionType"
+            app:argType="string"
+            android:defaultValue="H" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/seccionIFragment"
+        android:name="com.example.asuper.ui.SeccionFragment"
+        android:label="@string/seccion_i"
+        tools:layout="@layout/fragment_seccion">
+        <action
+            android:id="@+id/action_seccionI_to_seccionJ"
+            app:destination="@+id/seccionJFragment" />
+        <action
+            android:id="@+id/action_seccionI_to_seccionH"
+            app:destination="@+id/seccionHFragment" />
+        <argument
+            android:name="seccionType"
+            app:argType="string"
+            android:defaultValue="I" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/seccionJFragment"
+        android:name="com.example.asuper.ui.SeccionFragment"
+        android:label="@string/seccion_j"
+        tools:layout="@layout/fragment_seccion">
+        <action
+            android:id="@+id/action_seccionJ_to_preview"
+            app:destination="@+id/previewFragment" />
+        <action
+            android:id="@+id/action_seccionJ_to_seccionI"
+            app:destination="@+id/seccionIFragment" />
+        <argument
+            android:name="seccionType"
+            app:argType="string"
+            android:defaultValue="J" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/previewFragment"
+        android:name="com.example.asuper.ui.PreviewFragment"
+        android:label="@string/previsualizar_titulo"
+        tools:layout="@layout/fragment_preview">
+
+        <action
+            android:id="@+id/action_preview_to_datos"
+            app:destination="@+id/datosGeneralesFragment" />
+         <action
+             android:id="@+id/action_preview_to_seccionA"
+             app:destination="@+id/seccionAFragment">
+             <argument
+                 android:name="seccionType"
+                 app:argType="string"
+                 android:defaultValue="A" />
+         </action>
+         <action
+             android:id="@+id/action_preview_to_seccionB"
+             app:destination="@+id/seccionBFragment">
+             <argument
+                 android:name="seccionType"
+                 app:argType="string"
+                 android:defaultValue="B" />
+         </action>
+         <action
+             android:id="@+id/action_preview_to_seccionC"
+             app:destination="@+id/seccionCFragment">
+             <argument
+                 android:name="seccionType"
+                 app:argType="string"
+                 android:defaultValue="C" />
+         </action>
+         <action
+             android:id="@+id/action_preview_to_seccionD"
+             app:destination="@+id/seccionDFragment">
+             <argument
+                 android:name="seccionType"
+                 app:argType="string"
+                 android:defaultValue="D" />
+         </action>
+         <action
+             android:id="@+id/action_preview_to_seccionE"
+             app:destination="@+id/seccionEFragment">
+             <argument
+                 android:name="seccionType"
+                 app:argType="string"
+                 android:defaultValue="E" />
+         </action>
+         <action
+             android:id="@+id/action_preview_to_seccionF"
+             app:destination="@+id/seccionFFragment">
+             <argument
+                 android:name="seccionType"
+                 app:argType="string"
+                 android:defaultValue="F" />
+         </action>
+         <action
+             android:id="@+id/action_preview_to_seccionG"
+             app:destination="@+id/seccionGFragment">
+             <argument
+                 android:name="seccionType"
+                 app:argType="string"
+                 android:defaultValue="G" />
+         </action>
+         <action
+             android:id="@+id/action_preview_to_seccionH"
+             app:destination="@+id/seccionHFragment">
+             <argument
+                 android:name="seccionType"
+                 app:argType="string"
+                 android:defaultValue="H" />
+         </action>
+         <action
+             android:id="@+id/action_preview_to_seccionI"
+             app:destination="@+id/seccionIFragment">
+             <argument
+                 android:name="seccionType"
+                 app:argType="string"
+                 android:defaultValue="I" />
+         </action>
+         <action
+             android:id="@+id/action_preview_to_seccionJ"
+             app:destination="@+id/seccionJFragment">
+             <argument
+                 android:name="seccionType"
+                 app:argType="string"
+                 android:defaultValue="J" />
+         </action>
+
+     </fragment>
+
+</navigation>

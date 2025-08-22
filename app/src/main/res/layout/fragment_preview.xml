@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <TextView
+        android:id="@+id/tvPreviewTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Previsualización"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:textColor="@color/cfe_verde_principal"
+        android:background="@drawable/title_background"
+        android:padding="8dp"
+        android:elevation="2dp"
+        android:gravity="center"/>
+
+    <TextView
+        android:id="@+id/tvPageIndicator"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="1/11"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:textColor="@color/cfe_verde_principal"
+        android:background="@drawable/page_indicator_background"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:paddingTop="4dp"
+        android:paddingBottom="4dp"/>
+
+    <androidx.viewpager2.widget.ViewPager2
+        android:id="@+id/viewPagerPreview"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:paddingTop="8dp"/>
+
+    <com.tbuonomo.viewpagerdotsindicator.WormDotsIndicator
+        android:id="@+id/dotsIndicator"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="8dp"/>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="16dp"
+        android:gravity="center">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnNuevoReporte"
+            style="@style/Widget.CFE.Button"
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:layout_weight="1"
+            android:text="Nuevo Reporte"
+            android:textSize="14sp"
+            app:icon="@android:drawable/ic_menu_add"
+            app:iconGravity="textStart"
+            app:iconSize="24dp"
+            app:cornerRadius="8dp"
+            android:layout_marginEnd="8dp"/>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnGenerarPdf"
+            style="@style/Widget.CFE.Button"
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:layout_weight="1"
+            android:text="Generar PDF"
+            android:textSize="14sp"
+            app:icon="@android:drawable/ic_menu_save"
+            app:iconGravity="textStart"
+            app:iconSize="24dp"
+            app:cornerRadius="8dp"
+            android:layout_marginStart="8dp"/>
+    </LinearLayout>
+</LinearLayout>

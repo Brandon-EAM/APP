@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Colores para modo oscuro -->
+    <color name="photo_container_background">#2D2D2D</color>
+    <color name="photo_card_background">#3D3D3D</color>
+    <color name="text_color_primary">#FFFFFF</color>
+    <color name="text_color_secondary">#CCCCCC</color>
+    <color name="navigation_buttons_background">#1E1E1E</color>
+    <color name="dark_background">#000000</color>
+    
+    <!-- Aseguramos que los colores de CFE se mantengan iguales en modo oscuro -->
+    <color name="cfe_verde_principal">#006B3F</color>
+    <color name="cfe_verde_claro">#12A36E</color>
+</resources>
