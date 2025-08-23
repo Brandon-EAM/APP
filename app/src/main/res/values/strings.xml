@@ -52,6 +52,10 @@
     <string name="pdf_guardado_exito">PDF guardado en Downloads/CFE</string>
     <string name="abrir">Abrir</string>
     <string name="compartir">Compartir</string>
+    <string name="generando_pdf">Generando PDF...</string>
+    <string name="pdf_generado">PDF generado correctamente</string>
+    <string name="cancelar">Cancelar</string>
+    <string name="generacion_cancelada">Generación cancelada</string>
 
     <!-- Mensajes -->
     <string name="campos_obligatorios">Completa todos los campos obligatorios para continuar.</string>

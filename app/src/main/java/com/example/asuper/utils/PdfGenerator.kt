@@ -14,6 +14,7 @@ import com.example.asuper.data.FormularioData
 import com.example.asuper.data.SeccionConfig
 import com.example.asuper.data.SeccionData
 import com.example.asuper.data.SeccionType
+import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
@@ -29,46 +30,135 @@ class PdfGenerator(private val context: Context) {
         private const val MARGIN_TOP = 30f // Reducido para que el contenido comience más arriba
         private const val MARGIN_BOTTOM = 20f // Reducido para que el footer esté más abajo
         private const val CONTENT_WIDTH = PAGE_WIDTH - (2 * MARGIN_HORIZONTAL)
-        private const val CONTENT_HEIGHT = PAGE_HEIGHT - MARGIN_TOP - MARGIN_BOTTOM
+        private const val FOOTER_SPACE = 40f
         private const val CFE_GREEN = 0xFF00A651.toInt()
         private const val CFE_BLUE = 0xFF0066CC.toInt()
         private const val DARK_GRAY = 0xFF333333.toInt()
     }
 
-    fun generatePdf(data: FormularioData): File? {
+    private val pdfMaxSize = 15 * 1024 * 1024 // 15 MB
+
+    private fun countTotalImages(data: FormularioData): Int {
+        return listOf(
+            data.seccionA.imagenesUris.size,
+            data.seccionB.imagenesUris.size,
+            data.seccionC.imagenesUris.size,
+            data.seccionD.imagenesUris.size,
+            data.seccionE.imagenesUris.size,
+            data.seccionF.imagenesUris.size,
+            data.seccionG.imagenesUris.size,
+            data.seccionH.imagenesUris.size,
+            data.seccionI.imagenesUris.size,
+            data.seccionJ.imagenesUris.size,
+        ).sum()
+    }
+
+    private fun calculateTotalPages(data: FormularioData): Int {
+        var pages = 1 // Datos Generales
+        SeccionType.values().forEach { type ->
+            val seccionData = when (type) {
+                SeccionType.A -> data.seccionA
+                SeccionType.B -> data.seccionB
+                SeccionType.C -> data.seccionC
+                SeccionType.D -> data.seccionD
+                SeccionType.E -> data.seccionE
+                SeccionType.F -> data.seccionF
+                SeccionType.G -> data.seccionG
+                SeccionType.H -> data.seccionH
+                SeccionType.I -> data.seccionI
+                SeccionType.J -> data.seccionJ
+            }
+            val n = seccionData.imagenesUris.size
+            pages += when {
+                n == 0 -> 1
+                n <= 4 -> 1
+                else -> 1 + ((n - 4 + 3) / 4) // ceil((n-4)/4)
+            }
+        }
+        return pages
+    }
+
+    private fun getSectionQuality(baseQuality: Int, imagesInSection: Int): Int {
+        return when {
+            imagesInSection <= 2 -> 100
+            imagesInSection <= 4 -> (baseQuality - 5).coerceAtLeast(90)
+            else -> (baseQuality - 10 - (imagesInSection - 4) * 3).coerceAtLeast(80)
+        }
+    }
+
+    fun generatePdf(
+        data: FormularioData,
+        onProgress: (Int, Int) -> Unit = { _, _ -> },
+        isCancelled: () -> Boolean = { false }
+    ): File? {
         return try {
-            val document = PdfDocument()
-
-            createDatosGeneralesPage(document, data)
-            SeccionType.values().forEach { seccionType ->
-                createSeccionPage(document, data, seccionType)
+            val totalImages = countTotalImages(data)
+            var baseQuality = when {
+                totalImages <= 5 -> 100
+                totalImages <= 10 -> 95
+                totalImages <= 15 -> 90
+                totalImages <= 20 -> 85
+                else -> 80
             }
+            var resultFile: File? = null
+            val totalPages = calculateTotalPages(data)
 
-            val filename = buildFileName(data)
-            val outputStream = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                // Scoped storage: guardar en Downloads/CFE usando MediaStore
-                val contentValues = ContentValues().apply {
-                    put(MediaStore.MediaColumns.DISPLAY_NAME, filename)
-                    put(MediaStore.MediaColumns.MIME_TYPE, "application/pdf")
-                    put(MediaStore.MediaColumns.RELATIVE_PATH, "Download/CFE")
+            while (baseQuality >= 70 && resultFile == null) {
+                if (isCancelled()) return null
+                val document = PdfDocument()
+                var currentPage = 0
+
+                createDatosGeneralesPage(document, data)
+                currentPage++
+                onProgress(currentPage, totalPages)
+                if (isCancelled()) {
+                    document.close()
+                    return null
                 }
-                val uri = context.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
-                uri?.let { context.contentResolver.openOutputStream(it) }
-            } else {
-                val legacyFile = createLegacyDownloadsFile(filename)
-                FileOutputStream(legacyFile)
-            } ?: return null
 
-            document.writeTo(outputStream)
-            outputStream.close()
-            document.close()
+                SeccionType.values().forEach { seccionType ->
+                    if (isCancelled()) return null
+                    createSeccionPage(document, data, seccionType, baseQuality) {
+                        currentPage++
+                        onProgress(currentPage, totalPages)
+                    }
+                }
 
-            // Devolver File aproximado para mostrar ruta en Toast en Q+: construir ruta relativa
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "CFE/${filename}")
-            } else {
-                createLegacyDownloadsFile(filename)
+                val baos = ByteArrayOutputStream()
+                document.writeTo(baos)
+                document.close()
+
+                if (baos.size() > pdfMaxSize) {
+                    baseQuality -= 5
+                    continue
+                }
+
+                val bytes = baos.toByteArray()
+                val filename = buildFileName(data)
+                val outputStream = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    val contentValues = ContentValues().apply {
+                        put(MediaStore.MediaColumns.DISPLAY_NAME, filename)
+                        put(MediaStore.MediaColumns.MIME_TYPE, "application/pdf")
+                        put(MediaStore.MediaColumns.RELATIVE_PATH, "Download/CFE")
+                    }
+                    val uri = context.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
+                    uri?.let { context.contentResolver.openOutputStream(it) }
+                } else {
+                    val legacyFile = createLegacyDownloadsFile(filename)
+                    FileOutputStream(legacyFile)
+                } ?: return null
+
+                outputStream.write(bytes)
+                outputStream.close()
+
+                resultFile = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "CFE/${filename}")
+                } else {
+                    createLegacyDownloadsFile(filename)
+                }
             }
+
+            resultFile
         } catch (_: Exception) {
             null
         }
@@ -101,7 +191,13 @@ class PdfGenerator(private val context: Context) {
         document.finishPage(page)
     }
 
-    private fun createSeccionPage(document: PdfDocument, data: FormularioData, seccionType: SeccionType) {
+    private fun createSeccionPage(
+        document: PdfDocument,
+        data: FormularioData,
+        seccionType: SeccionType,
+        baseQuality: Int,
+        onPageFinished: () -> Unit
+    ) {
         // Obtener los datos de la sección
         val seccionData = when (seccionType) {
             SeccionType.A -> data.seccionA
@@ -118,7 +214,7 @@ class PdfGenerator(private val context: Context) {
         
         // Si no hay imágenes, crear una página normal
         if (seccionData.imagenesUris.isEmpty()) {
-            createSingleSeccionPage(document, data, seccionType, seccionData, emptyList())
+            createSingleSeccionPage(document, data, seccionType, seccionData, emptyList(), getSectionQuality(baseQuality, 0), onPageFinished)
             return
         }
         
@@ -127,7 +223,7 @@ class PdfGenerator(private val context: Context) {
         if (!seccionData.usarTexto && seccionData.imagenesUris.size == 1) {
             try {
                 val uri = Uri.parse(seccionData.imagenesUris[0])
-                val bitmap = loadAndProcessImage(uri, true, false)
+                val bitmap = loadAndProcessImage(uri)
                 if (bitmap != null && bitmap.width > bitmap.height) {
                     isLandscapePage = true
                     if (!bitmap.isRecycled) bitmap.recycle()
@@ -137,38 +233,43 @@ class PdfGenerator(private val context: Context) {
         
         // Distribuir imágenes según las reglas
         val imagenesUris = seccionData.imagenesUris
-        
+
         when {
-            // Si hay 1 o 2 imágenes, todas van en la primera página
-            imagenesUris.size <= 2 -> {
-                createSingleSeccionPage(document, data, seccionType, seccionData, imagenesUris)
+            // Hasta 4 imágenes se colocan en la primera página
+            imagenesUris.size <= 4 -> {
+                createSingleSeccionPage(
+                    document,
+                    data,
+                    seccionType,
+                    seccionData,
+                    imagenesUris,
+                    getSectionQuality(baseQuality, imagenesUris.size),
+                    onPageFinished
+                )
             }
-            
-            // Si hay 3 imágenes: 1 en primera página, 2 en segunda
-            imagenesUris.size == 3 -> {
-                // Primera página con 1 imagen
-                createSingleSeccionPage(document, data, seccionType, seccionData, imagenesUris.take(1))
-                // Segunda página solo con imágenes (sin texto descriptivo)
-                createAdditionalImagesPage(document, data, seccionType, imagenesUris.drop(1))
-            }
-            
-            // Si hay 4 imágenes: 2 en primera página, 2 en segunda
-            imagenesUris.size == 4 -> {
-                // Primera página con 2 imágenes
-                createSingleSeccionPage(document, data, seccionType, seccionData, imagenesUris.take(2))
-                // Segunda página solo con imágenes (sin texto descriptivo)
-                createAdditionalImagesPage(document, data, seccionType, imagenesUris.drop(2))
-            }
-            
-            // Si hay 5 o más imágenes: 2 en primera página, resto en páginas adicionales (máx 3 por página)
+
+            // Más de 4 imágenes: 4 en la primera página y el resto en páginas adicionales (máx 4 por página)
             else -> {
-                // Primera página con 2 imágenes
-                createSingleSeccionPage(document, data, seccionType, seccionData, imagenesUris.take(2))
-                
-                // Distribuir el resto en páginas adicionales (máx 3 por página)
-                val remainingImages = imagenesUris.drop(2)
-                remainingImages.chunked(3).forEach { chunk ->
-                    createAdditionalImagesPage(document, data, seccionType, chunk)
+                createSingleSeccionPage(
+                    document,
+                    data,
+                    seccionType,
+                    seccionData,
+                    imagenesUris.take(4),
+                    getSectionQuality(baseQuality, imagenesUris.size),
+                    onPageFinished
+                )
+
+                val remainingImages = imagenesUris.drop(4)
+                remainingImages.chunked(4).forEach { chunk ->
+                    createAdditionalImagesPage(
+                        document,
+                        data,
+                        seccionType,
+                        chunk,
+                        getSectionQuality(baseQuality, imagenesUris.size),
+                        onPageFinished
+                    )
                 }
             }
         }
@@ -182,14 +283,16 @@ class PdfGenerator(private val context: Context) {
         data: FormularioData, 
         seccionType: SeccionType, 
         seccionData: SeccionData,
-        imagesToShow: List<String>
+        imagesToShow: List<String>,
+        quality: Int,
+        onPageFinished: () -> Unit
     ) {
         // Determinar si es una sola imagen horizontal
         var isLandscapePage = false
         if (!seccionData.usarTexto && imagesToShow.size == 1) {
             try {
                 val uri = Uri.parse(imagesToShow[0])
-                val bitmap = loadAndProcessImage(uri, true, false)
+                val bitmap = loadAndProcessImage(uri)
                 if (bitmap != null && bitmap.width > bitmap.height) {
                     isLandscapePage = true
                     if (!bitmap.isRecycled) bitmap.recycle()
@@ -220,7 +323,7 @@ class PdfGenerator(private val context: Context) {
         if (seccionData.usarTexto && seccionData.textoPrincipal.isNotEmpty()) {
             yPosition = drawTextContent(canvas, seccionData.textoPrincipal, yPosition)
         } else if (!seccionData.usarTexto && imagesToShow.isNotEmpty()) {
-            yPosition = drawImages(canvas, imagesToShow, yPosition, isLandscapePage)
+            yPosition = drawImages(canvas, imagesToShow, yPosition, isLandscapePage, quality)
             if (seccionData.textoAlternativo.isNotEmpty()) {
                 yPosition += 5f
                 yPosition = drawTextContent(canvas, "Descripción: ${seccionData.textoAlternativo}", yPosition)
@@ -232,8 +335,9 @@ class PdfGenerator(private val context: Context) {
         // Obtener la nota de la sección si existe
         val nota = seccionData.nota
         drawFooter(canvas, data.fechaSupervision, isLandscapePage, nota)
-        
+
         document.finishPage(page)
+        onPageFinished()
     }
     
     /**
@@ -243,7 +347,9 @@ class PdfGenerator(private val context: Context) {
         document: PdfDocument, 
         data: FormularioData, 
         seccionType: SeccionType, 
-        imagesToShow: List<String>
+        imagesToShow: List<String>,
+        quality: Int,
+        onPageFinished: () -> Unit
     ) {
         if (imagesToShow.isEmpty()) return
         
@@ -252,7 +358,7 @@ class PdfGenerator(private val context: Context) {
         if (imagesToShow.size == 1) {
             try {
                 val uri = Uri.parse(imagesToShow[0])
-                val bitmap = loadAndProcessImage(uri, true, false)
+                val bitmap = loadAndProcessImage(uri)
                 if (bitmap != null && bitmap.width > bitmap.height) {
                     isLandscapePage = true
                     if (!bitmap.isRecycled) bitmap.recycle()
@@ -276,7 +382,7 @@ class PdfGenerator(private val context: Context) {
         yPosition += 12f
         
         // Dibujar solo las imágenes
-        yPosition = drawImages(canvas, imagesToShow, yPosition, isLandscapePage)
+        yPosition = drawImages(canvas, imagesToShow, yPosition, isLandscapePage, quality)
 
         // Obtener la nota de la sección si existe
         val seccionData = when (seccionType) {
@@ -293,8 +399,9 @@ class PdfGenerator(private val context: Context) {
         }
         val nota = seccionData.nota
         drawFooter(canvas, data.fechaSupervision, isLandscapePage, nota)
-        
+
         document.finishPage(page)
+        onPageFinished()
     }
 
     private fun drawHeader(canvas: Canvas, title: String, startY: Float): Float {
@@ -574,250 +681,96 @@ class PdfGenerator(private val context: Context) {
         return currentY + 10f
     }
 
-    private fun drawImages(canvas: Canvas, imageUris: List<String>, startY: Float, isLandscapePage: Boolean = false): Float {
+    private fun drawImages(
+        canvas: Canvas,
+        imageUris: List<String>,
+        startY: Float,
+        isLandscapePage: Boolean = false,
+        imageQuality: Int = 95
+    ): Float {
         if (imageUris.isEmpty()) return startY
-        
+
         var currentY = startY
-        val processedImages = mutableListOf<Bitmap>()
-        
-        // Determinar si es una sola imagen para aplicar el escalado especial
-        val isSingleImage = imageUris.size == 1
-        
-        // Paso 1: Cargar y procesar todas las imágenes
-        imageUris.forEach { uriString ->
+
+        val bitmaps = imageUris.mapNotNull { uriString ->
             try {
                 val uri = Uri.parse(uriString)
-                val bitmap = loadAndProcessImage(uri) ?: return@forEach
-                // Aplicar escalado especial (30% más grande) si es una sola imagen
-                val scaledBitmap = scaleImageToContent(bitmap, isSingleImage, isLandscapePage)
-                val finalBitmap = compressToJpegAndDecode(scaledBitmap, 95) // Usamos calidad 95 para mejor nitidez
-                processedImages.add(finalBitmap)
-                
-                if (scaledBitmap != bitmap) scaledBitmap.recycle()
-                if (!bitmap.isRecycled) bitmap.recycle()
-            } catch (_: Exception) { }
+                loadAndProcessImage(uri)
+            } catch (_: Exception) { null }
         }
-        
-        // Si no hay imágenes procesadas, salir
-        if (processedImages.isEmpty()) return startY
-        
-        // Obtener el ancho de página según la orientación
+
+        if (bitmaps.isEmpty()) return startY
+
         val pageWidth = if (isLandscapePage) PAGE_HEIGHT else PAGE_WIDTH
-        
-        // Paso 2: Determinar la disposición según la cantidad de imágenes
-        when (processedImages.size) {
-            1 -> {
-                // Una sola imagen: centrada
-                val bitmap = processedImages[0]
-                
-                // Calcular la posición para centrar la imagen en la página
-                val x = (pageWidth - bitmap.width) / 2
-                
-                // En modo paisaje, aseguramos que la imagen esté correctamente posicionada
-                // después de la rotación del canvas
-                if (isLandscapePage) {
-                    // Ajustamos la posición vertical para dejar espacio para el header y título
-                    val adjustedY = currentY + 5f // Reducido de 10f a 5f
-                    canvas.drawBitmap(bitmap, x, adjustedY, null)
-                    currentY += bitmap.height + 10f // Reducido de 20f a 10f
-                } else {
-                    // En modo retrato, mantenemos el comportamiento original
-                    canvas.drawBitmap(bitmap, x, currentY, null)
-                    currentY += bitmap.height + 10f // Espaciado vertical uniforme de 10f
-                }
-            }
-            2 -> {
-                // Dos imágenes: una al lado de la otra, respetando proporciones
-                val spacing = 10f // Espaciado uniforme de 10f entre imágenes
-                val maxHeight = 250f // Reducimos la altura máxima para evitar saturación
-                
-                // Calcular escalas para mantener proporciones
-                val scales = processedImages.map { 
-                    minOf(1f, maxHeight / it.height) 
-                }
-                
-                // Calcular ancho total después del escalado
-                val totalWidth = processedImages.mapIndexed { index, bitmap ->
-                    (bitmap.width * scales[index]).toInt()
-                }.sum() + spacing
-                
-                var x = (pageWidth - totalWidth) / 2
-                
-                // Dibujar imágenes escaladas
-                processedImages.forEachIndexed { index, bitmap ->
-                    val scale = scales[index]
-                    val scaledWidth = (bitmap.width * scale).toInt()
-                    val scaledHeight = (bitmap.height * scale).toInt()
-                    
-                    // Crear bitmap escalado manteniendo proporciones
-                    val scaledBitmap = if (scale < 1f) {
-                        Bitmap.createScaledBitmap(bitmap, scaledWidth, scaledHeight, true)
-                    } else {
-                        bitmap
+        val pageHeight = if (isLandscapePage) PAGE_WIDTH else PAGE_HEIGHT
+        val contentWidth = pageWidth - (2 * MARGIN_HORIZONTAL)
+        val availableHeight = pageHeight - MARGIN_BOTTOM - FOOTER_SPACE - currentY
+        val spacing = 10f
+
+        // Usar una sola columna cuando haya una o dos imágenes para maximizar la legibilidad
+        val columns = if (bitmaps.size <= 2) 1 else 2
+        val rows = Math.ceil(bitmaps.size / columns.toDouble()).toInt()
+
+        // Altura de fila sin límite artificial para evitar estiramientos
+        val rowHeight = (availableHeight - (rows - 1) * spacing) / rows
+
+        var index = 0
+        val paint = Paint().apply { isFilterBitmap = true }
+        for (row in 0 until rows) {
+            val colsInRow = minOf(columns, bitmaps.size - index)
+            val colWidth = (contentWidth - (colsInRow - 1) * spacing) / colsInRow
+            var x = MARGIN_HORIZONTAL
+            for (col in 0 until colsInRow) {
+                var bitmap = bitmaps[index]
+
+                if (imageQuality < 100) {
+                    val compressed = compressToJpegAndDecode(bitmap, imageQuality)
+                    if (compressed != bitmap) {
+                        bitmap.recycle()
+                        bitmap = compressed
                     }
-                    
-                    canvas.drawBitmap(scaledBitmap, x, currentY, null)
-                    x += scaledWidth + spacing
-                    
-                    if (scaledBitmap != bitmap) scaledBitmap.recycle()
                 }
-                
-                currentY += maxHeight + 10f // Espaciado vertical uniforme de 10f
+
+                val scale = minOf(colWidth / bitmap.width, rowHeight / bitmap.height, 1f)
+                val drawWidth = bitmap.width * scale
+                val drawHeight = bitmap.height * scale
+                val drawX = x + (colWidth - drawWidth) / 2
+                val drawY = currentY + (rowHeight - drawHeight) / 2
+
+                val dest = RectF(drawX, drawY, drawX + drawWidth, drawY + drawHeight)
+                canvas.drawBitmap(bitmap, null, dest, paint)
+                bitmap.recycle()
+
+                x += colWidth + spacing
+                index++
             }
-            3 -> {
-                // Tres imágenes: 2 arriba, 1 abajo centrada, respetando proporciones
-                val spacing = 10f // Espaciado uniforme de 10f entre imágenes
-                val maxRowHeight = 250f // Reducimos la altura máxima para evitar saturación
-                
-                // Primera fila (2 imágenes)
-                val row1 = processedImages.take(2)
-                val scales1 = row1.map { minOf(1f, maxRowHeight / it.height) }
-                
-                val row1Width = row1.mapIndexed { index, bitmap ->
-                    (bitmap.width * scales1[index]).toInt()
-                }.sum() + spacing
-                
-                var x = (pageWidth - row1Width) / 2
-                
-                // Dibujar primera fila
-                row1.forEachIndexed { index, bitmap ->
-                    val scale = scales1[index]
-                    val scaledWidth = (bitmap.width * scale).toInt()
-                    val scaledHeight = (bitmap.height * scale).toInt()
-                    
-                    val scaledBitmap = if (scale < 1f) {
-                        Bitmap.createScaledBitmap(bitmap, scaledWidth, scaledHeight, true)
-                    } else {
-                        bitmap
-                    }
-                    
-                    canvas.drawBitmap(scaledBitmap, x, currentY, null)
-                    x += scaledWidth + spacing
-                    
-                    if (scaledBitmap != bitmap) scaledBitmap.recycle()
-                }
-                
-                currentY += maxRowHeight + 10f // Espaciado vertical uniforme de 10f
-                
-                // Segunda fila (1 imagen centrada)
-                val bitmap = processedImages[2]
-                val scale2 = minOf(1f, maxRowHeight / bitmap.height)
-                val scaledWidth = (bitmap.width * scale2).toInt()
-                val scaledHeight = (bitmap.height * scale2).toInt()
-                
-                val scaledBitmap = if (scale2 < 1f) {
-                    Bitmap.createScaledBitmap(bitmap, scaledWidth, scaledHeight, true)
-                } else {
-                    bitmap
-                }
-                
-                x = (pageWidth - scaledWidth) / 2
-                canvas.drawBitmap(scaledBitmap, x, currentY, null)
-                currentY += scaledHeight + 10f // Espaciado vertical uniforme de 10f
-                
-                if (scaledBitmap != bitmap) scaledBitmap.recycle()
-            }
-            4 -> {
-                // Cuatro imágenes: 2x2, respetando proporciones
-                val spacing = 10f // Espaciado uniforme de 10f entre imágenes
-                val maxRowHeight = 250f // Reducimos la altura máxima para evitar saturación
-                val rows = processedImages.chunked(2)
-                
-                rows.forEachIndexed { rowIndex, rowBitmaps ->
-                    val rowScales = rowBitmaps.map { minOf(1f, maxRowHeight / it.height) }
-                    
-                    val rowWidth = rowBitmaps.mapIndexed { index, bitmap ->
-                        (bitmap.width * rowScales[index]).toInt()
-                    }.sum() + spacing
-                    
-                    var x = (pageWidth - rowWidth) / 2
-                    
-                    rowBitmaps.forEachIndexed { index, bitmap ->
-                        val scale = rowScales[index]
-                        val scaledWidth = (bitmap.width * scale).toInt()
-                        val scaledHeight = (bitmap.height * scale).toInt()
-                        
-                        val scaledBitmap = if (scale < 1f) {
-                            Bitmap.createScaledBitmap(bitmap, scaledWidth, scaledHeight, true)
-                        } else {
-                            bitmap
-                        }
-                        
-                        canvas.drawBitmap(scaledBitmap, x, currentY, null)
-                        x += scaledWidth + spacing
-                        
-                        if (scaledBitmap != bitmap) scaledBitmap.recycle()
-                    }
-                    
-                    currentY += maxRowHeight + 10f // Espaciado vertical uniforme de 10f
-                }
-            }
-            else -> {
-                // Más de 4 imágenes (no debería ocurrir según los límites)
-                // Mostrar en filas de 2, respetando proporciones
-                val spacing = 10f // Espaciado uniforme de 10f entre imágenes
-                val maxRowHeight = 250f // Reducimos la altura máxima para evitar saturación
-                val rows = processedImages.chunked(2)
-                
-                rows.forEach { rowBitmaps ->
-                    val rowScales = rowBitmaps.map { minOf(1f, maxRowHeight / it.height) }
-                    
-                    val rowWidth = rowBitmaps.mapIndexed { index, bitmap ->
-                        (bitmap.width * rowScales[index]).toInt()
-                    }.sum() + (rowBitmaps.size - 1) * spacing
-                    
-                    var x = (pageWidth - rowWidth) / 2
-                    
-                    rowBitmaps.forEachIndexed { index, bitmap ->
-                        val scale = rowScales[index]
-                        val scaledWidth = (bitmap.width * scale).toInt()
-                        val scaledHeight = (bitmap.height * scale).toInt()
-                        
-                        val scaledBitmap = if (scale < 1f) {
-                            Bitmap.createScaledBitmap(bitmap, scaledWidth, scaledHeight, true)
-                        } else {
-                            bitmap
-                        }
-                        
-                        canvas.drawBitmap(scaledBitmap, x, currentY, null)
-                        x += scaledWidth + spacing
-                        
-                        if (scaledBitmap != bitmap) scaledBitmap.recycle()
-                    }
-                    
-                    currentY += maxRowHeight + 10f // Espaciado vertical uniforme de 10f
-                }
-            }
+            currentY += rowHeight
+            if (row < rows - 1) currentY += spacing
         }
-        
-        // Liberar memoria de las imágenes procesadas
-        processedImages.forEach { if (!it.isRecycled) it.recycle() }
-        
-        return currentY + 10f
+
+        return currentY
     }
 
-    private fun loadAndProcessImage(uri: Uri, singleImage: Boolean = false, isLandscapePage: Boolean = false): Bitmap? {
+    private fun loadAndProcessImage(uri: Uri): Bitmap? {
         return try {
-            context.contentResolver.openInputStream(uri).use { inputStream ->
-                val original = BitmapFactory.decodeStream(inputStream)
-                applyExifRotation(original, uri)
+            val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: return null
+            val options = BitmapFactory.Options().apply {
+                inPreferredConfig = Bitmap.Config.ARGB_8888
+                inScaled = false
             }
+            var bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
+            if (bitmap == null) return null
+
+            val orientation = ExifInterface(ByteArrayInputStream(bytes))
+                .getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)
+            bitmap = when (orientation) {
+                ExifInterface.ORIENTATION_ROTATE_90 -> rotateBitmap(bitmap, 90f)
+                ExifInterface.ORIENTATION_ROTATE_180 -> rotateBitmap(bitmap, 180f)
+                ExifInterface.ORIENTATION_ROTATE_270 -> rotateBitmap(bitmap, 270f)
+                else -> bitmap
+            }
+            bitmap
         } catch (_: Exception) { null }
-    }
-
-    private fun applyExifRotation(bitmap: Bitmap?, uri: Uri): Bitmap? {
-        if (bitmap == null) return null
-        return try {
-            context.contentResolver.openInputStream(uri).use { exifStream ->
-                val exif = ExifInterface(exifStream!!)
-                when (exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)) {
-                    ExifInterface.ORIENTATION_ROTATE_90 -> rotateBitmap(bitmap, 90f)
-                    ExifInterface.ORIENTATION_ROTATE_180 -> rotateBitmap(bitmap, 180f)
-                    ExifInterface.ORIENTATION_ROTATE_270 -> rotateBitmap(bitmap, 270f)
-                    else -> bitmap
-                }
-            }
-        } catch (_: Exception) { bitmap }
     }
 
     private fun rotateBitmap(bitmap: Bitmap, degrees: Float): Bitmap {
@@ -825,57 +778,21 @@ class PdfGenerator(private val context: Context) {
         return Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
     }
 
-    private fun scaleImageToContent(bitmap: Bitmap, singleImage: Boolean = false, isLandscapePage: Boolean = false): Bitmap {
-        // Ajustar el ancho máximo según la orientación de la página
-        val maxWidth = if (isLandscapePage) {
-            // En modo paisaje, usamos el 85% del espacio disponible para dejar margen
-            (PAGE_HEIGHT - 2 * MARGIN_HORIZONTAL - 40f).toInt() // Usar altura de página como ancho en modo paisaje
-        } else {
-            (CONTENT_WIDTH - 20f).toInt()
-        }
-        
-        // Si es una sola imagen, aumentamos el tamaño máximo en un 30%
-        val maxHeight = if (singleImage) {
-            if (isLandscapePage) {
-                // En modo paisaje con una sola imagen, usamos el 80% del espacio disponible
-                (PAGE_WIDTH - 2 * MARGIN_HORIZONTAL - 60f).toInt() * 0.8f // 80% del ancho disponible en modo paisaje
-            } else {
-                390 // 300 * 1.3 = 390 (30% más grande que el estándar)
-            }
-        } else {
-            250 // Altura estándar para múltiples imágenes
-        }
-        
-        val scale = minOf(maxWidth.toFloat() / bitmap.width, maxHeight.toFloat() / bitmap.height)
-        
-        // Si es una sola imagen, aplicamos un factor de escala adicional
-        val finalScale = if (singleImage) {
-            if (isLandscapePage) {
-                // En modo paisaje, usamos un factor de escala del 95% para mantener proporciones
-                scale * 0.95f
-            } else {
-                // En modo retrato, mantenemos el factor de escala del 130%
-                scale * 1.3f
-            }
-        } else {
-            scale
-        }
-        
-        val newWidth = (bitmap.width * finalScale).toInt().coerceAtLeast(1)
-        val newHeight = (bitmap.height * finalScale).toInt().coerceAtLeast(1)
-        
-        return if (newWidth == bitmap.width && newHeight == bitmap.height) {
-            bitmap
-        } else {
-            Bitmap.createScaledBitmap(bitmap, newWidth, newHeight, true)
-        }
-    }
-
     private fun compressToJpegAndDecode(bitmap: Bitmap, quality: Int): Bitmap {
+        if (quality >= 100) return bitmap
+
+        // Dibujar sobre un fondo blanco para evitar bordes grises al comprimir imágenes con transparencia
+        val withBg = Bitmap.createBitmap(bitmap.width, bitmap.height, Bitmap.Config.ARGB_8888)
+        Canvas(withBg).apply {
+            drawColor(Color.WHITE)
+            drawBitmap(bitmap, 0f, 0f, null)
+        }
+
         val baos = ByteArrayOutputStream()
-        // Aumentamos la calidad de compresión a 95 para todas las imágenes
-        bitmap.compress(Bitmap.CompressFormat.JPEG, 95, baos)
+        withBg.compress(Bitmap.CompressFormat.JPEG, quality, baos)
         val bytes = baos.toByteArray()
+
+        if (withBg != bitmap) withBg.recycle()
         return BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
     }
 

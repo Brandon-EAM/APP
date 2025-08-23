@@ -8,8 +8,14 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
+import android.widget.ProgressBar
+import android.widget.TextView
+import android.widget.Button
+import android.content.Intent
+import android.net.Uri
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.viewpager2.widget.ViewPager2
@@ -21,6 +27,10 @@ import com.example.asuper.R
 import com.example.asuper.utils.PdfGenerator
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.io.File
+import androidx.appcompat.app.AlertDialog
 
 class PreviewFragment : Fragment() {
     private var _binding: FragmentPreviewBinding? = null
@@ -105,12 +115,70 @@ class PreviewFragment : Fragment() {
 
     private fun generarPdf() {
         val data = vm.state.value
-        val file = PdfGenerator(requireContext()).generatePdf(data)
-        if (file != null) {
-            Toast.makeText(requireContext(), "PDF guardado en: ${file.absolutePath}", Toast.LENGTH_LONG).show()
-        } else {
-            Toast.makeText(requireContext(), "Error al generar PDF", Toast.LENGTH_SHORT).show()
+        val inflater = LayoutInflater.from(requireContext())
+        val dialogView = inflater.inflate(R.layout.dialog_progress, null)
+        val progressBar = dialogView.findViewById<ProgressBar>(R.id.progressBar)
+        val tvProgress = dialogView.findViewById<TextView>(R.id.tvProgress)
+        var cancel = false
+
+        val dialog = AlertDialog.Builder(requireContext())
+            .setTitle(getString(R.string.generando_pdf))
+            .setView(dialogView)
+            .setCancelable(false)
+            .create()
+
+        dialogView.findViewById<Button>(R.id.btnCancelar).setOnClickListener {
+            cancel = true
         }
+
+        dialog.show()
+
+        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+            val file = PdfGenerator(requireContext()).generatePdf(
+                data,
+                onProgress = { current, total ->
+                    val percent = (current * 100) / total
+                    progressBar.post {
+                        progressBar.progress = percent
+                        tvProgress.text = "$percent%"
+                    }
+                },
+                isCancelled = { cancel }
+            )
+
+            dialog.dismiss()
+
+            if (file != null && !cancel) {
+                withContext(Dispatchers.Main) {
+                    AlertDialog.Builder(requireContext())
+                        .setMessage(getString(R.string.pdf_generado))
+                        .setPositiveButton(getString(R.string.abrir)) { _, _ -> openPdf(file) }
+                        .setNegativeButton(android.R.string.ok, null)
+                        .show()
+                }
+            } else if (cancel) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(requireContext(), getString(R.string.generacion_cancelada), Toast.LENGTH_SHORT).show()
+                }
+            } else {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(requireContext(), "Error al generar PDF", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    private fun openPdf(file: File) {
+        val uri: Uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            FileProvider.getUriForFile(requireContext(), "com.example.asuper.fileprovider", file)
+        } else {
+            Uri.fromFile(file)
+        }
+        val intent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(uri, "application/pdf")
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        startActivity(intent)
     }
     
     /**

@@ -2,4 +2,5 @@
 <paths xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Directory to temporarily store captured images -->
     <cache-path name="temp_images" path="temp_images/" />
+    <external-path name="external" path="." />
 </paths>
