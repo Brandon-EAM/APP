@@ -1,6 +1,7 @@
 package com.example.asuper.ui
 
 import android.Manifest
+import android.app.Activity
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
@@ -14,6 +15,7 @@ import android.view.animation.AlphaAnimation
 import android.view.animation.Animation
 import android.view.inputmethod.EditorInfo
 import android.widget.TextView
+import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
@@ -39,6 +41,9 @@ import com.example.asuper.utils.ClickDebouncer
 import com.example.asuper.utils.NavControllerExt.safeNavigate
 import com.example.asuper.utils.NavControllerExt.resetNavigationState
 import com.google.android.material.textfield.TextInputLayout
+import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions
+import com.google.mlkit.vision.documentscanner.GmsDocumentScanning
+import com.google.mlkit.vision.documentscanner.GmsDocumentScanningResult
 import java.io.File
 
 class SeccionFragment : Fragment() {
@@ -51,6 +56,13 @@ class SeccionFragment : Fragment() {
     private val debouncer = ClickDebouncer()
 
     private var tempCaptureUri: Uri? = null
+
+    private val scannerOptions = GmsDocumentScannerOptions.Builder()
+        .setGalleryImportAllowed(true)
+        .setPageLimit(1)
+        .setResultFormats(GmsDocumentScannerOptions.RESULT_FORMAT_JPEG)
+        .build()
+
 
     private val pickImages = registerForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris ->
         if (uris != null && uris.isNotEmpty()) {
@@ -78,6 +90,17 @@ class SeccionFragment : Fragment() {
             }
         }
     }
+
+    private val scanDocument =
+        registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
+            if (result.resultCode == Activity.RESULT_OK) {
+                val docResult = GmsDocumentScanningResult.fromActivityResultIntent(result.data)
+                val uri = docResult?.pages?.firstOrNull()?.imageUri
+                if (uri != null) {
+                    vm.updateSeccion(seccion(), addImagenes = listOf(uri))
+                }
+            }
+        }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentSeccionBinding.inflate(inflater, container, false)
@@ -299,13 +322,14 @@ class SeccionFragment : Fragment() {
     }
 
     private fun mostrarOpcionesImagen() {
-        val opciones = arrayOf("Seleccionar de galería", "Tomar foto")
+        val opciones = arrayOf("Seleccionar de galería", "Tomar foto", "Escanear documento")
         AlertDialog.Builder(requireContext())
             .setTitle("Agregar imagen")
             .setItems(opciones) { _, which ->
                 when (which) {
                     0 -> solicitarYSeleccionar()
                     1 -> solicitarYCapturar()
+                    2 -> solicitarYEscanear()
                 }
             }
             .show()
@@ -349,6 +373,26 @@ class SeccionFragment : Fragment() {
         }
     }
 
+    private fun solicitarYEscanear() {
+        if (tienePerisosCamara()) {
+            val current = vm.state.value.valueFor(seccion())
+            val max = SeccionConfig.getMaxImagenes(seccion())
+            if (current.imagenesUris.size >= max) {
+                mostrarAlertaMaxImagenes(max)
+                return
+            }
+            val scanner = GmsDocumentScanning.getClient(scannerOptions)
+            scanner.getStartScanIntent(requireActivity())
+                .addOnSuccessListener { intentSender ->
+                    val request = IntentSenderRequest.Builder(intentSender).build()
+                    scanDocument.launch(request)
+                }
+                .addOnFailureListener { /* Ignorado */ }
+        } else {
+            solicitarPermisosCamaraEscaner()
+        }
+    }
+
     // Permisos
     private fun tienePerisosCamara(): Boolean {
         return ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
@@ -371,6 +415,10 @@ class SeccionFragment : Fragment() {
         if (granted) solicitarYCapturar()
     }
 
+    private val requestScannerPerm = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) solicitarYEscanear()
+    }
+
     private fun solicitarPermisoLectura() {
         val perm = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             Manifest.permission.READ_MEDIA_IMAGES
@@ -382,6 +430,10 @@ class SeccionFragment : Fragment() {
 
     private fun solicitarPermisosCamara() {
         requestCameraPerm.launch(Manifest.permission.CAMERA)
+    }
+
+    private fun solicitarPermisosCamaraEscaner() {
+        requestScannerPerm.launch(Manifest.permission.CAMERA)
     }
 
     private fun seccion(): SeccionType = runCatching { SeccionType.valueOf(args.seccionType) }.getOrElse { SeccionType.A }

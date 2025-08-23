@@ -63,6 +63,9 @@ dependencies {
     // EXIF para rotación de imágenes
     implementation(libs.androidx.exifinterface)
 
+    // Escaneo de documentos
+    implementation(libs.mlkit.document.scanner)
+
     // Room
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)
