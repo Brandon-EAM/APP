@@ -14,10 +14,10 @@ import com.example.asuper.data.FormularioData
 import com.example.asuper.data.SeccionConfig
 import com.example.asuper.data.SeccionData
 import com.example.asuper.data.SeccionType
-import java.io.ByteArrayInputStream
-import java.io.ByteArrayOutputStream
 import java.io.File
+import java.io.FileInputStream
 import java.io.FileOutputStream
+import java.io.ByteArrayOutputStream
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -37,6 +37,7 @@ class PdfGenerator(private val context: Context) {
     }
 
     private val pdfMaxSize = 15 * 1024 * 1024 // 15 MB
+    private val maxImageDimension = 1600
 
     private fun countTotalImages(data: FormularioData): Int {
         return listOf(
@@ -82,7 +83,7 @@ class PdfGenerator(private val context: Context) {
         return when {
             imagesInSection <= 2 -> 100
             imagesInSection <= 4 -> (baseQuality - 5).coerceAtLeast(90)
-            else -> (baseQuality - 10 - (imagesInSection - 4) * 3).coerceAtLeast(80)
+            else -> (baseQuality - 10 - (imagesInSection - 4) * 3).coerceAtLeast(50)
         }
     }
 
@@ -103,7 +104,7 @@ class PdfGenerator(private val context: Context) {
             var resultFile: File? = null
             val totalPages = calculateTotalPages(data)
 
-            while (baseQuality >= 70 && resultFile == null) {
+            while (baseQuality >= 50 && resultFile == null) {
                 if (isCancelled()) return null
                 val document = PdfDocument()
                 var currentPage = 0
@@ -124,16 +125,16 @@ class PdfGenerator(private val context: Context) {
                     }
                 }
 
-                val baos = ByteArrayOutputStream()
-                document.writeTo(baos)
+                val tempFile = File.createTempFile("temp_pdf", ".pdf", context.cacheDir)
+                FileOutputStream(tempFile).use { document.writeTo(it) }
                 document.close()
 
-                if (baos.size() > pdfMaxSize) {
+                if (tempFile.length() > pdfMaxSize) {
                     baseQuality -= 5
+                    tempFile.delete()
                     continue
                 }
 
-                val bytes = baos.toByteArray()
                 val filename = buildFileName(data)
                 val outputStream = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     val contentValues = ContentValues().apply {
@@ -146,10 +147,15 @@ class PdfGenerator(private val context: Context) {
                 } else {
                     val legacyFile = createLegacyDownloadsFile(filename)
                     FileOutputStream(legacyFile)
-                } ?: return null
+                } ?: run {
+                    tempFile.delete()
+                    return null
+                }
 
-                outputStream.write(bytes)
-                outputStream.close()
+                FileInputStream(tempFile).use { input ->
+                    outputStream.use { input.copyTo(it) }
+                }
+                tempFile.delete()
 
                 resultFile = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "CFE/${filename}")
@@ -223,11 +229,7 @@ class PdfGenerator(private val context: Context) {
         if (!seccionData.usarTexto && seccionData.imagenesUris.size == 1) {
             try {
                 val uri = Uri.parse(seccionData.imagenesUris[0])
-                val bitmap = loadAndProcessImage(uri)
-                if (bitmap != null && bitmap.width > bitmap.height) {
-                    isLandscapePage = true
-                    if (!bitmap.isRecycled) bitmap.recycle()
-                }
+                isLandscapePage = isImageLandscape(uri)
             } catch (_: Exception) { }
         }
         
@@ -292,11 +294,7 @@ class PdfGenerator(private val context: Context) {
         if (!seccionData.usarTexto && imagesToShow.size == 1) {
             try {
                 val uri = Uri.parse(imagesToShow[0])
-                val bitmap = loadAndProcessImage(uri)
-                if (bitmap != null && bitmap.width > bitmap.height) {
-                    isLandscapePage = true
-                    if (!bitmap.isRecycled) bitmap.recycle()
-                }
+                isLandscapePage = isImageLandscape(uri)
             } catch (_: Exception) { }
         }
         
@@ -358,11 +356,7 @@ class PdfGenerator(private val context: Context) {
         if (imagesToShow.size == 1) {
             try {
                 val uri = Uri.parse(imagesToShow[0])
-                val bitmap = loadAndProcessImage(uri)
-                if (bitmap != null && bitmap.width > bitmap.height) {
-                    isLandscapePage = true
-                    if (!bitmap.isRecycled) bitmap.recycle()
-                }
+                isLandscapePage = isImageLandscape(uri)
             } catch (_: Exception) { }
         }
         
@@ -692,15 +686,6 @@ class PdfGenerator(private val context: Context) {
 
         var currentY = startY
 
-        val bitmaps = imageUris.mapNotNull { uriString ->
-            try {
-                val uri = Uri.parse(uriString)
-                loadAndProcessImage(uri)
-            } catch (_: Exception) { null }
-        }
-
-        if (bitmaps.isEmpty()) return startY
-
         val pageWidth = if (isLandscapePage) PAGE_HEIGHT else PAGE_WIDTH
         val pageHeight = if (isLandscapePage) PAGE_WIDTH else PAGE_HEIGHT
         val contentWidth = pageWidth - (2 * MARGIN_HORIZONTAL)
@@ -708,8 +693,8 @@ class PdfGenerator(private val context: Context) {
         val spacing = 10f
 
         // Usar una sola columna cuando haya una o dos imágenes para maximizar la legibilidad
-        val columns = if (bitmaps.size <= 2) 1 else 2
-        val rows = Math.ceil(bitmaps.size / columns.toDouble()).toInt()
+        val columns = if (imageUris.size <= 2) 1 else 2
+        val rows = Math.ceil(imageUris.size / columns.toDouble()).toInt()
 
         // Altura de fila sin límite artificial para evitar estiramientos
         val rowHeight = (availableHeight - (rows - 1) * spacing) / rows
@@ -717,29 +702,31 @@ class PdfGenerator(private val context: Context) {
         var index = 0
         val paint = Paint().apply { isFilterBitmap = true }
         for (row in 0 until rows) {
-            val colsInRow = minOf(columns, bitmaps.size - index)
+            val colsInRow = minOf(columns, imageUris.size - index)
             val colWidth = (contentWidth - (colsInRow - 1) * spacing) / colsInRow
             var x = MARGIN_HORIZONTAL
             for (col in 0 until colsInRow) {
-                var bitmap = bitmaps[index]
-
-                if (imageQuality < 100) {
-                    val compressed = compressToJpegAndDecode(bitmap, imageQuality)
-                    if (compressed != bitmap) {
-                        bitmap.recycle()
-                        bitmap = compressed
+                val uri = Uri.parse(imageUris[index])
+                var bitmap = loadAndProcessImage(uri)
+                if (bitmap != null) {
+                    if (imageQuality < 100) {
+                        val compressed = compressToJpegAndDecode(bitmap, imageQuality)
+                        if (compressed != bitmap) {
+                            bitmap.recycle()
+                            bitmap = compressed
+                        }
                     }
+
+                    val scale = minOf(colWidth / bitmap.width, rowHeight / bitmap.height, 1f)
+                    val drawWidth = bitmap.width * scale
+                    val drawHeight = bitmap.height * scale
+                    val drawX = x + (colWidth - drawWidth) / 2
+                    val drawY = currentY + (rowHeight - drawHeight) / 2
+
+                    val dest = RectF(drawX, drawY, drawX + drawWidth, drawY + drawHeight)
+                    canvas.drawBitmap(bitmap, null, dest, paint)
+                    bitmap.recycle()
                 }
-
-                val scale = minOf(colWidth / bitmap.width, rowHeight / bitmap.height, 1f)
-                val drawWidth = bitmap.width * scale
-                val drawHeight = bitmap.height * scale
-                val drawX = x + (colWidth - drawWidth) / 2
-                val drawY = currentY + (rowHeight - drawHeight) / 2
-
-                val dest = RectF(drawX, drawY, drawX + drawWidth, drawY + drawHeight)
-                canvas.drawBitmap(bitmap, null, dest, paint)
-                bitmap.recycle()
 
                 x += colWidth + spacing
                 index++
@@ -753,16 +740,26 @@ class PdfGenerator(private val context: Context) {
 
     private fun loadAndProcessImage(uri: Uri): Bitmap? {
         return try {
-            val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: return null
-            val options = BitmapFactory.Options().apply {
-                inPreferredConfig = Bitmap.Config.ARGB_8888
-                inScaled = false
+            val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            context.contentResolver.openInputStream(uri)?.use {
+                BitmapFactory.decodeStream(it, null, options)
             }
-            var bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
-            if (bitmap == null) return null
+            options.inSampleSize = calculateInSampleSize(options.outWidth, options.outHeight, maxImageDimension, maxImageDimension)
+            options.inJustDecodeBounds = false
+            options.inPreferredConfig = Bitmap.Config.ARGB_8888
+            options.inScaled = false
 
-            val orientation = ExifInterface(ByteArrayInputStream(bytes))
-                .getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)
+            var bitmap = context.contentResolver.openInputStream(uri)?.use {
+                BitmapFactory.decodeStream(it, null, options)
+            } ?: return null
+
+            val orientation = context.contentResolver.openInputStream(uri)?.use {
+                ExifInterface(it).getAttributeInt(
+                    ExifInterface.TAG_ORIENTATION,
+                    ExifInterface.ORIENTATION_NORMAL
+                )
+            } ?: ExifInterface.ORIENTATION_NORMAL
+
             bitmap = when (orientation) {
                 ExifInterface.ORIENTATION_ROTATE_90 -> rotateBitmap(bitmap, 90f)
                 ExifInterface.ORIENTATION_ROTATE_180 -> rotateBitmap(bitmap, 180f)
@@ -771,6 +768,39 @@ class PdfGenerator(private val context: Context) {
             }
             bitmap
         } catch (_: Exception) { null }
+    }
+
+    private fun isImageLandscape(uri: Uri): Boolean {
+        return try {
+            val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            context.contentResolver.openInputStream(uri)?.use {
+                BitmapFactory.decodeStream(it, null, options)
+            }
+            var width = options.outWidth
+            var height = options.outHeight
+            val orientation = context.contentResolver.openInputStream(uri)?.use {
+                ExifInterface(it).getAttributeInt(
+                    ExifInterface.TAG_ORIENTATION,
+                    ExifInterface.ORIENTATION_NORMAL
+                )
+            } ?: ExifInterface.ORIENTATION_NORMAL
+            if (orientation == ExifInterface.ORIENTATION_ROTATE_90 || orientation == ExifInterface.ORIENTATION_ROTATE_270) {
+                val temp = width
+                width = height
+                height = temp
+            }
+            width > height
+        } catch (_: Exception) { false }
+    }
+
+    private fun calculateInSampleSize(width: Int, height: Int, reqWidth: Int, reqHeight: Int): Int {
+        var inSampleSize = 1
+        // Incrementa el factor de muestreo hasta que al menos una dimensión
+        // se encuentre dentro del tamaño requerido
+        while (width / inSampleSize > reqWidth || height / inSampleSize > reqHeight) {
+            inSampleSize *= 2
+        }
+        return inSampleSize
     }
 
     private fun rotateBitmap(bitmap: Bitmap, degrees: Float): Bitmap {
