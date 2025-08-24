@@ -36,8 +36,8 @@ class PdfGenerator(private val context: Context) {
         private const val DARK_GRAY = 0xFF333333.toInt()
     }
 
-    private val pdfMaxSize = 15 * 1024 * 1024 // 15 MB
-    private val maxImageDimension = 1600
+    private val pdfMaxSize = 15 * 1024 * 1024 // Límite duro 15 MB
+    private val pdfTargetSize = 10 * 1024 * 1024 // Objetivo preferido 10 MB
 
     private fun countTotalImages(data: FormularioData): Int {
         return listOf(
@@ -80,10 +80,18 @@ class PdfGenerator(private val context: Context) {
     }
 
     private fun getSectionQuality(baseQuality: Int, imagesInSection: Int): Int {
+        // Calidad base ya viene reducida un 20%
         return when {
-            imagesInSection <= 2 -> 100
-            imagesInSection <= 4 -> (baseQuality - 5).coerceAtLeast(90)
-            else -> (baseQuality - 10 - (imagesInSection - 4) * 3).coerceAtLeast(50)
+            imagesInSection <= 2 -> baseQuality
+            else -> (baseQuality * 0.75).toInt().coerceAtLeast(1) // Permite más pérdida para 3+ imágenes si es necesario
+        }
+    }
+
+    private fun getMaxDimension(imagesInSection: Int): Int {
+        return when {
+            imagesInSection <= 1 -> 2000
+            imagesInSection == 2 -> 1200
+            else -> 800
         }
     }
 
@@ -101,38 +109,51 @@ class PdfGenerator(private val context: Context) {
                 totalImages <= 20 -> 85
                 else -> 80
             }
-            var resultFile: File? = null
+            baseQuality = (baseQuality * 0.8).toInt() // reducción global del 20%
+
             val totalPages = calculateTotalPages(data)
+            val totalSections = SeccionType.values().size
+            val totalSteps = totalImages + totalSections + totalPages + 1
 
-            while (baseQuality >= 50 && resultFile == null) {
+            var resultFile: File? = null
+
+            while (resultFile == null) {
                 if (isCancelled()) return null
-                val document = PdfDocument()
-                var currentPage = 0
 
-                createDatosGeneralesPage(document, data)
-                currentPage++
-                onProgress(currentPage, totalPages)
-                if (isCancelled()) {
-                    document.close()
-                    return null
+                var step = 0
+                onProgress(step, totalSteps)
+                val advance = {
+                    if (step < totalSteps) {
+                        step++
+                        onProgress(step, totalSteps)
+                    }
                 }
+
+                val document = PdfDocument()
+
+                createDatosGeneralesPage(document, data) { advance() }
 
                 SeccionType.values().forEach { seccionType ->
                     if (isCancelled()) return null
-                    createSeccionPage(document, data, seccionType, baseQuality) {
-                        currentPage++
-                        onProgress(currentPage, totalPages)
-                    }
+                    advance() // Inserción de sección
+                    createSeccionPage(document, data, seccionType, baseQuality, { advance() }) { advance() }
                 }
 
                 val tempFile = File.createTempFile("temp_pdf", ".pdf", context.cacheDir)
                 FileOutputStream(tempFile).use { document.writeTo(it) }
                 document.close()
 
-                if (tempFile.length() > pdfMaxSize) {
-                    baseQuality -= 5
-                    tempFile.delete()
-                    continue
+                when {
+                    tempFile.length() > pdfMaxSize -> {
+                        baseQuality = (baseQuality - 5).coerceAtLeast(1)
+                        tempFile.delete()
+                        continue
+                    }
+                    tempFile.length() > pdfTargetSize && baseQuality > 1 -> {
+                        baseQuality = (baseQuality - 5).coerceAtLeast(1)
+                        tempFile.delete()
+                        continue
+                    }
                 }
 
                 val filename = buildFileName(data)
@@ -162,6 +183,7 @@ class PdfGenerator(private val context: Context) {
                 } else {
                     createLegacyDownloadsFile(filename)
                 }
+                advance() // Optimización final
             }
 
             resultFile
@@ -170,7 +192,7 @@ class PdfGenerator(private val context: Context) {
         }
     }
 
-    private fun createDatosGeneralesPage(document: PdfDocument, data: FormularioData) {
+    private fun createDatosGeneralesPage(document: PdfDocument, data: FormularioData, onPageFinished: () -> Unit) {
         val pageInfo = PdfDocument.PageInfo.Builder(PAGE_WIDTH.toInt(), PAGE_HEIGHT.toInt(), 1).create()
         val page = document.startPage(pageInfo)
         val canvas = page.canvas
@@ -195,6 +217,7 @@ class PdfGenerator(private val context: Context) {
 
         drawFooter(canvas, data.fechaSupervision)
         document.finishPage(page)
+        onPageFinished()
     }
 
     private fun createSeccionPage(
@@ -202,7 +225,8 @@ class PdfGenerator(private val context: Context) {
         data: FormularioData,
         seccionType: SeccionType,
         baseQuality: Int,
-        onPageFinished: () -> Unit
+        onPageFinished: () -> Unit,
+        onImageProcessed: () -> Unit
     ) {
         // Obtener los datos de la sección
         val seccionData = when (seccionType) {
@@ -218,9 +242,11 @@ class PdfGenerator(private val context: Context) {
             SeccionType.J -> data.seccionJ
         }
         
+        val maxDimension = getMaxDimension(seccionData.imagenesUris.size)
+
         // Si no hay imágenes, crear una página normal
         if (seccionData.imagenesUris.isEmpty()) {
-            createSingleSeccionPage(document, data, seccionType, seccionData, emptyList(), getSectionQuality(baseQuality, 0), onPageFinished)
+            createSingleSeccionPage(document, data, seccionType, seccionData, emptyList(), getSectionQuality(baseQuality, 0), maxDimension, onPageFinished, onImageProcessed)
             return
         }
         
@@ -246,7 +272,9 @@ class PdfGenerator(private val context: Context) {
                     seccionData,
                     imagenesUris,
                     getSectionQuality(baseQuality, imagenesUris.size),
-                    onPageFinished
+                    maxDimension,
+                    onPageFinished,
+                    onImageProcessed
                 )
             }
 
@@ -259,7 +287,9 @@ class PdfGenerator(private val context: Context) {
                     seccionData,
                     imagenesUris.take(4),
                     getSectionQuality(baseQuality, imagenesUris.size),
-                    onPageFinished
+                    maxDimension,
+                    onPageFinished,
+                    onImageProcessed
                 )
 
                 val remainingImages = imagenesUris.drop(4)
@@ -270,7 +300,9 @@ class PdfGenerator(private val context: Context) {
                         seccionType,
                         chunk,
                         getSectionQuality(baseQuality, imagenesUris.size),
-                        onPageFinished
+                        maxDimension,
+                        onPageFinished,
+                        onImageProcessed
                     )
                 }
             }
@@ -281,13 +313,15 @@ class PdfGenerator(private val context: Context) {
      * Crea una página de sección con encabezado, título, descripción y las imágenes especificadas
      */
     private fun createSingleSeccionPage(
-        document: PdfDocument, 
-        data: FormularioData, 
-        seccionType: SeccionType, 
+        document: PdfDocument,
+        data: FormularioData,
+        seccionType: SeccionType,
         seccionData: SeccionData,
         imagesToShow: List<String>,
         quality: Int,
-        onPageFinished: () -> Unit
+        maxDimension: Int,
+        onPageFinished: () -> Unit,
+        onImageProcessed: () -> Unit
     ) {
         // Determinar si es una sola imagen horizontal
         var isLandscapePage = false
@@ -321,7 +355,7 @@ class PdfGenerator(private val context: Context) {
         if (seccionData.usarTexto && seccionData.textoPrincipal.isNotEmpty()) {
             yPosition = drawTextContent(canvas, seccionData.textoPrincipal, yPosition)
         } else if (!seccionData.usarTexto && imagesToShow.isNotEmpty()) {
-            yPosition = drawImages(canvas, imagesToShow, yPosition, isLandscapePage, quality)
+            yPosition = drawImages(canvas, imagesToShow, yPosition, isLandscapePage, quality, maxDimension, onImageProcessed)
             if (seccionData.textoAlternativo.isNotEmpty()) {
                 yPosition += 5f
                 yPosition = drawTextContent(canvas, "Descripción: ${seccionData.textoAlternativo}", yPosition)
@@ -342,12 +376,14 @@ class PdfGenerator(private val context: Context) {
      * Crea una página adicional solo con imágenes (sin texto descriptivo)
      */
     private fun createAdditionalImagesPage(
-        document: PdfDocument, 
-        data: FormularioData, 
-        seccionType: SeccionType, 
+        document: PdfDocument,
+        data: FormularioData,
+        seccionType: SeccionType,
         imagesToShow: List<String>,
         quality: Int,
-        onPageFinished: () -> Unit
+        maxDimension: Int,
+        onPageFinished: () -> Unit,
+        onImageProcessed: () -> Unit
     ) {
         if (imagesToShow.isEmpty()) return
         
@@ -376,7 +412,7 @@ class PdfGenerator(private val context: Context) {
         yPosition += 12f
         
         // Dibujar solo las imágenes
-        yPosition = drawImages(canvas, imagesToShow, yPosition, isLandscapePage, quality)
+        yPosition = drawImages(canvas, imagesToShow, yPosition, isLandscapePage, quality, maxDimension, onImageProcessed)
 
         // Obtener la nota de la sección si existe
         val seccionData = when (seccionType) {
@@ -680,7 +716,9 @@ class PdfGenerator(private val context: Context) {
         imageUris: List<String>,
         startY: Float,
         isLandscapePage: Boolean = false,
-        imageQuality: Int = 95
+        imageQuality: Int = 95,
+        maxDimension: Int,
+        onImageProcessed: () -> Unit
     ): Float {
         if (imageUris.isEmpty()) return startY
 
@@ -707,7 +745,7 @@ class PdfGenerator(private val context: Context) {
             var x = MARGIN_HORIZONTAL
             for (col in 0 until colsInRow) {
                 val uri = Uri.parse(imageUris[index])
-                var bitmap = loadAndProcessImage(uri)
+                var bitmap = loadAndProcessImage(uri, maxDimension, onImageProcessed)
                 if (bitmap != null) {
                     if (imageQuality < 100) {
                         val compressed = compressToJpegAndDecode(bitmap, imageQuality)
@@ -738,13 +776,13 @@ class PdfGenerator(private val context: Context) {
         return currentY
     }
 
-    private fun loadAndProcessImage(uri: Uri): Bitmap? {
+    private fun loadAndProcessImage(uri: Uri, maxDimension: Int, onImageProcessed: () -> Unit): Bitmap? {
         return try {
             val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
             context.contentResolver.openInputStream(uri)?.use {
                 BitmapFactory.decodeStream(it, null, options)
             }
-            options.inSampleSize = calculateInSampleSize(options.outWidth, options.outHeight, maxImageDimension, maxImageDimension)
+            options.inSampleSize = calculateInSampleSize(options.outWidth, options.outHeight, maxDimension, maxDimension)
             options.inJustDecodeBounds = false
             options.inPreferredConfig = Bitmap.Config.ARGB_8888
             options.inScaled = false
@@ -766,8 +804,12 @@ class PdfGenerator(private val context: Context) {
                 ExifInterface.ORIENTATION_ROTATE_270 -> rotateBitmap(bitmap, 270f)
                 else -> bitmap
             }
+            onImageProcessed()
             bitmap
-        } catch (_: Exception) { null }
+        } catch (_: Exception) {
+            onImageProcessed()
+            null
+        }
     }
 
     private fun isImageLandscape(uri: Uri): Boolean {

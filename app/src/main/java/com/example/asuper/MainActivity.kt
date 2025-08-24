@@ -2,10 +2,10 @@ package com.example.asuper
 
 import android.os.Build
 import android.os.Bundle
-import android.view.WindowInsetsController
 import android.view.WindowManager
 import android.widget.ImageView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.WindowCompat
 import androidx.navigation.findNavController
 import com.example.asuper.databinding.ActivityMainBinding
 
@@ -29,21 +29,9 @@ class MainActivity : AppCompatActivity() {
         }
         
         // Aplicar el color a la barra de estado
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            // Para Android 12 (API 31) y superior
-            window.decorView.windowInsetsController?.setSystemBarsAppearance(
-                0,
-                WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
-            )
-            // Solo aplicar el color a la barra de estado, no a toda la ventana
-            window.statusBarColor = colorVerdePrincipal
-        } else {
-            // Para Android 10 y versiones anteriores
-            @Suppress("DEPRECATION")
-            window.decorView.systemUiVisibility = android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
-            @Suppress("DEPRECATION")
-            window.statusBarColor = colorVerdePrincipal
-        }
+        val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+        insetsController.isAppearanceLightStatusBars = false
+        window.setStatusBarColor(colorVerdePrincipal)
 
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
